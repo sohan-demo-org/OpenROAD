@@ -70,6 +70,9 @@ struct PhysicsSnapshot
   PhysicsSummary summary;
   int passes = 0;
   float inflated_area_percent = 0;
+  // True when per-instance power came from OpenSTA liberty power data
+  // rather than the leakage / area proxy.
+  bool used_sta_power = false;
   // Per-pass history of the headline numbers (for logs and demos).
   struct PassRecord
   {

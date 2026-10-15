@@ -173,6 +173,16 @@ class QtGuiBackend : public GuiBackend
     main_window->getControls()->unregisterRenderer(renderer);
   }
 
+  void registerHeatMap(HeatMapDataSource* heatmap) override
+  {
+    main_window->registerHeatMap(heatmap);
+  }
+
+  void unregisterHeatMap(HeatMapDataSource* heatmap) override
+  {
+    main_window->unregisterHeatMap(heatmap);
+  }
+
   void setSelected(const Selected& selection) override
   {
     main_window->setSelected(selection);

@@ -152,6 +152,7 @@ PhysicsSnapshot PhysicsBase::makeSnapshot() const
   snap.passes = pass_count_;
   snap.inflated_area_percent = getInflatedAreaPercent();
   snap.history = history_;
+  snap.used_sta_power = used_sta_power_;
   return snap;
 }
 
