@@ -4,6 +4,8 @@
 %{
 #include "ord/OpenRoad.hh"
 #include "gpl/Replace.h"
+#include "physicsHeatMap.h"
+#include "physicsReport.h"
 #include "odb/db.h"
 #include "utl/Logger.h"
 #include "utl/cpu_topology.h"
@@ -201,6 +203,15 @@ replace_nesterov_place_cmd(const std::map<std::string, std::string>& keys,
   Replace* replace = getReplace();
   int threads = placementThreads();
   replace->doNesterovPlace(threads, options);
+  gpl::invalidatePhysicsHeatMaps();
+}
+
+void
+report_physics_placement_cmd()
+{
+  Replace* replace = getReplace();
+  utl::Logger* logger = ord::OpenRoad::openRoad()->getLogger();
+  gpl::reportPhysicsPlacement(replace->getPhysicsSnapshot(), logger);
 }
 
 
@@ -222,6 +233,7 @@ replace_incremental_place_cmd(const std::map<std::string, std::string>& keys,
   Replace* replace = getReplace();
   int threads = placementThreads();
   replace->doIncrementalPlace(threads, options);
+  gpl::invalidatePhysicsHeatMaps();
 }
 
 

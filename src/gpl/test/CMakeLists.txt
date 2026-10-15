@@ -25,6 +25,7 @@ or_integration_tests(
     simple01-ref
     simple01-skip-io
     simple01-td
+    simple01-phys
     simple01-td-net-percentage
     simple01-td-tune
     simple01-td-repair
@@ -48,6 +49,7 @@ or_integration_tests(
     region01
   PASSFAIL_TESTS
     incremental02
+    physics_opts_error01
     incremental03
     place_ios_rd
     place_ios_td
@@ -193,6 +195,31 @@ gtest_discover_tests(place_ios_test
 if(ENABLE_GPU)
   add_test(NAME place_ios_test_load_sentinel
            COMMAND $<TARGET_FILE:place_ios_test> --gtest_list_tests)
+endif()
+
+add_executable(physics_heatmap_test physics_heatmap_test.cc)
+
+target_include_directories(physics_heatmap_test
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(physics_heatmap_test
+  GTest::gtest
+  GTest::gtest_main
+  gpl
+  gpl_lib
+  gui_core
+  tst
+)
+
+gtest_discover_tests(physics_heatmap_test
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    ${gpl_gpu_test_discovery}
+)
+if(ENABLE_GPU)
+  add_test(NAME physics_heatmap_test_load_sentinel
+           COMMAND $<TARGET_FILE:physics_heatmap_test> --gtest_list_tests)
 endif()
 
 add_executable(placer_base_test

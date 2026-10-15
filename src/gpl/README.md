@@ -45,6 +45,21 @@ values to decrease runtime, for example.
 
 You can also set an overflow value for `keep_resize_below_overflow`, when below that, the modifications made by the rsz tool are maintained (non-virtual `repair_design`).
 
+When the `-physics_driven` flag is enabled, the placer periodically (at the
+`-physics_driven_overflows` checkpoints, like timing-driven mode) builds a
+coupled model of the physical effects that decide real silicon behaviour and
+feeds it back into the placement objective. Per-instance power (from OpenSTA
+when liberty power data exists, otherwise a leakage / area proxy) is binned
+onto the density grid, a steady-state thermal solve turns the power map into a
+temperature map, a resistive supply-sheet solve turns it into an IR-drop map,
+and the two are combined into a per-bin delay derate and an Arrhenius
+reliability-stress proxy. Three actuators then act on the placement: a field
+force that pushes power-hungry cells down the temperature / IR-drop / stress
+gradients, thermal inflation of cells sitting in high-stress bins, and extra
+wirelength weight on nets that sit in derated (slow) bins. After placement the
+final fields are kept as a snapshot for `report_physics_placement` and the
+`Physics: *` GUI heat maps.
+
 When the routability-driven option is enabled, each of its iterations will 
 execute RUDY to provide an estimation of routing congestion. Congested tiles 
 will have the area of their logic cells inflated to reduce routing congestion. 
@@ -74,6 +89,7 @@ global_placement
     [-skip_nesterov_place]\
     [-timing_driven]\
     [-routability_driven]\
+    [-physics_driven]\
     [-incremental]\
     [-skip_io]\
     [-place_ios]\
@@ -101,6 +117,17 @@ global_placement
     [-timing_driven_nets_percentage timing_driven_nets_percentage]\
     [-timing_driven_repair_timing]\
     [-timing_driven_repair_tns_end_percent timing_driven_repair_tns_end_percent]\
+    [-physics_driven_overflows physics_driven_overflows]\
+    [-physics_thermal_weight physics_thermal_weight]\
+    [-physics_ir_weight physics_ir_weight]\
+    [-physics_reliability_weight physics_reliability_weight]\
+    [-physics_timing_weight physics_timing_weight]\
+    [-physics_force_ratio physics_force_ratio]\
+    [-physics_max_inflation_ratio physics_max_inflation_ratio]\
+    [-physics_max_inflation_total physics_max_inflation_total]\
+    [-physics_ambient_temperature physics_ambient_temperature]\
+    [-physics_supply_voltage physics_supply_voltage]\
+    [-physics_pad_pitch physics_pad_pitch]\
     [-pad_left pad_left]\
     [-pad_right pad_right]\
     [-disable_revert_if_diverge]\
@@ -118,6 +145,7 @@ global_placement
 | ----- | ----- |
 | `-timing_driven` | Enable timing-driven mode. See [link](#timing-driven-arguments) for timing-specific arguments. |
 | `-routability_driven` | Enable routability-driven mode. See [link](#routability-driven-arguments) for routability-specific arguments. |
+| `-physics_driven` | Enable physics-driven mode (power, temperature, IR drop, timing derate and reliability stress coupled into the placement objective). See [link](#physics-driven-arguments) for physics-specific arguments. |
 | `-skip_initial_place` | Skip the initial placement (Biconjugate gradient stabilized, or BiCGSTAB solving) before Nesterov placement. Initial placement improves HPWL by ~5% on large designs. Equivalent to `-initial_place_max_iter 0`. | 
 | `-skip_nesterov_place` | Skip the nesterov placement. | 
 | `-force_center_initial_place` | Initiate instances at the center of the core (or region) before initial placement, even if they already have a valid ODB location. By default, the placer will use the existing ODB locations if available. |
@@ -173,6 +201,22 @@ global_placement
 | `-keep_resize_below_overflow` | When the overflow is below the value, timing-driven iterations will retain (non-virtual) the resizer changes instead of reverting them (virtual). The default value is `1.0`, making all timing-driven iterations non-virtual. Allowed values are floats `[0, 1]`. |
 | `-timing_driven_repair_timing` | **Experimental.** Enable a conservative `repair_setup` pass during last timing-driven iteration. The intent is to apply minimal buffering and gate sizing so that the placement better correlates with global routing timing. Only the worst setup violators are targeted. Disruptive operations (pin swap, gate cloning, VT swap) are suppressed to avoid topology changes during placement. Not ready for production use. |
 | `-timing_driven_repair_tns_end_percent` | **Experimental.** When `-timing_driven_repair_timing` is enabled, controls the percentage of violating endpoints targeted by the `repair_setup` call. The default value is `1.0` and the allowed values are floats `[0, 100]`. |
+
+#### Physics-Driven Arguments
+
+| Switch Name | Description |
+| ----- | ----- |
+| `-physics_driven_overflows` | Overflow checkpoints (percent, descending) at which a physics pass runs. Allowed value is a Tcl list of integers in `[0, 100]`. Default values are `{79 64 40 20}`. |
+| `-physics_thermal_weight` | Weight of the temperature gradient in the physics field force. The default value is `1.0`, and the allowed values are floats `[0, 100]`. |
+| `-physics_ir_weight` | Weight of the IR-drop gradient in the physics field force. The default value is `1.0`, and the allowed values are floats `[0, 100]`. |
+| `-physics_reliability_weight` | Weight of the reliability-stress gradient in the physics field force and the thermal inflation. The default value is `1.0`, and the allowed values are floats `[0, 100]`. |
+| `-physics_timing_weight` | Exponent applied to the per-bin delay derate to obtain the extra net weight (`derate^weight`) for nets in hot / IR-starved bins. The default value is `1.0`, and the allowed values are floats `[0, 100]`. |
+| `-physics_force_ratio` | Magnitude of the physics field force relative to the wirelength gradient (the force is renormalised at each checkpoint so that its L1 norm equals this fraction of the wirelength gradient). The default value is `0.1`, and the allowed values are floats `[0, 10]`. |
+| `-physics_max_inflation_ratio` | Maximum per-cell area inflation ratio applied to cells in high-stress bins. The default value is `2.0`, and the allowed values are positive floats. |
+| `-physics_max_inflation_total` | Budget for the total inflated area as a fraction of the movable area. The default value is `0.15`, and the allowed values are floats `[0, 1]`. |
+| `-physics_ambient_temperature` | Ambient (package) temperature in degrees Celsius used by the thermal model. The default value is `25.0`. |
+| `-physics_supply_voltage` | Supply voltage in volts for the IR-drop model. The default value is `0`, meaning take it from the liberty / SDC data; allowed values are non-negative floats. |
+| `-physics_pad_pitch` | Pitch in microns of the flip-chip supply bump grid used as the IR-drop boundary condition. The default value is `0`, meaning a wire-bond style supply ring on the die boundary; allowed values are non-negative floats. |
 
 ### Placement Configuration
 
@@ -231,6 +275,20 @@ The `report_place_config` command reports the current settings.
 
 ```tcl
 report_place_config
+```
+
+### Report Physics Placement
+
+The `report_physics_placement` command prints the summary of the last
+`global_placement -physics_driven` run: power source and total power,
+maximum / average temperature, hottest bin location, maximum IR drop (mV and
+percent of Vdd), maximum delay derate, maximum reliability stress, number of
+physics passes, inflated area percentage, and a per-pass history table (iter,
+overflow, Tmax, max IR drop, max derate). If no physics-driven placement has
+run, a warning (`GPL-0230`) is printed instead.
+
+```tcl
+report_physics_placement
 ```
 
 ### Cluster Flops

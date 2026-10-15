@@ -31,6 +31,7 @@ TESTS = [
     "simple01-ref",
     "simple01-skip-io",
     "simple01-td",
+    "simple01-phys",
     "simple01-td-net-percentage",
     "simple01-td-tune",
     "simple01-td-repair",
@@ -56,6 +57,7 @@ TESTS = [
 
 PASSFAIL_TESTS = [
     "incremental02",
+    "physics_opts_error01",
     "incremental03",
     "place_ios_rd",
     "place_ios_td",
@@ -171,6 +173,7 @@ PY_TESTS = [
     "simple01-ref",
     "simple01-skip-io",
     "simple01-td",
+    "simple01-phys",
     "simple01-td-net-percentage",
     "simple01-td-tune",
     "simple01-td-repair",
@@ -265,6 +268,24 @@ cc_test(
     target_compatible_with = GPU_ONLY,
     deps = [
         "//src/gpl:gpl_kokkos",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "physics_heatmap_test",
+    srcs = ["physics_heatmap_test.cc"],
+    env = GPU_ENV_OFF,
+    features = ["-layering_check"],  # includes private gpl headers
+    linkstatic = True,
+    deps = [
+        "//src/gpl:gpl_impl",
+        "//src/gpl:ui",
+        "//src/odb/src/db",
+        "//src/tst:db_fixture",
+        "//src/utl",
+        "//src/web:core",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
