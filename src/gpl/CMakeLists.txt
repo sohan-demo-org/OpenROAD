@@ -40,6 +40,8 @@ add_library(gpl_lib
   src/densityGradient.cpp
   src/routeBase.cpp
   src/timingBase.cpp
+  src/physicsField.cpp
+  src/physicsBase.cpp
   src/clockBase.cpp
   src/graphicsNone.cpp
   src/solver.cpp

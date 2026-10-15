@@ -262,10 +262,16 @@ class GNet
 
   void setTimingWeight(float timingWeight);
   void setCustomWeight(float customWeight);
+  // Physics-driven delay-derate weight (physicsBase.cpp), 1 when unused.
+  void setPhysicsWeight(float physicsWeight);
 
-  float getTotalWeight() const { return timingWeight_ * customWeight_; }
+  float getTotalWeight() const
+  {
+    return timingWeight_ * customWeight_ * physicsWeight_;
+  }
   float getTimingWeight() const { return timingWeight_; }
   float getCustomWeight() const { return customWeight_; }
+  float getPhysicsWeight() const { return physicsWeight_; }
 
   void addGPin(GPin* gPin);
   void clearGPins() { gPins_.clear(); }
@@ -318,6 +324,7 @@ class GNet
 
   float timingWeight_ = 1;
   float customWeight_ = 1;
+  float physicsWeight_ = 1;
 
   //
   // weighted average WL model stor for better indexing
@@ -852,6 +859,9 @@ struct NesterovPlaceVars
   bool timingDrivenRepairTiming;
   float timingDrivenRepairTnsEndPercent;
   int timingDrivenIterCounter = 0;
+  // Physics-driven mode (power/thermal/IR/timing/reliability coupling).
+  bool physicsDrivenMode;
+  int physicsDrivenIterCounter = 0;
   const bool routability_driven_mode;
   const bool disableRevertIfDiverge;
 
@@ -1200,6 +1210,18 @@ class NesterovBase
     nbVars_.isMaxPhiCoefChanged = maxPhiCoefChanged;
   }
 
+  // Physics-driven force term (physicsBase.cpp). One entry per nb_gcells_
+  // index; added to the sum gradient as physicsCoef * physicsGrads[i].
+  // An empty vector disables the term.
+  void setPhysicsGradients(std::vector<FloatPoint> grads, float coef);
+  void clearPhysicsGradients();
+  const std::vector<FloatPoint>& getPhysicsGradients() const
+  {
+    return physicsGrads_;
+  }
+  float getPhysicsCoef() const { return physicsCoef_; }
+  float getPhysicsGradSum() const { return physicsGradSum_; }
+
   void updateGradients(std::vector<FloatPoint>& sumGrads,
                        std::vector<FloatPoint>& wireLengthGrads,
                        std::vector<FloatPoint>& densityGrads,
@@ -1488,6 +1510,12 @@ class NesterovBase
   void rebindHandleIndex(size_t nb_index);
 
   float wireLengthGradSum_ = 0;
+
+  std::vector<FloatPoint> physicsGrads_;
+
+  float physicsCoef_ = 0;
+
+  float physicsGradSum_ = 0;
   float densityGradSum_ = 0;
 
   // opt_phi_cof
