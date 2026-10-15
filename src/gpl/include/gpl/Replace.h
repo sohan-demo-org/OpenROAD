@@ -163,6 +163,9 @@ struct PlaceOptions
 
   void skipIo();
   void validate(utl::Logger* log);
+  // Range checks for the -physics_* options; run whenever physics-driven
+  // mode is requested (validate() also calls it).
+  void validatePhysics(utl::Logger* log) const;
 };
 
 class Replace

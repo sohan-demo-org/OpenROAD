@@ -353,6 +353,9 @@ bool Replace::initNesterovPlace(const PlaceOptions& options,
                                 const int threads,
                                 bool check_density)
 {
+  if (options.physicsDrivenMode) {
+    options.validatePhysics(log_);
+  }
   if (!pbc_) {
     pbc_ = std::make_shared<PlacerBaseCommon>(db_, options, log_);
 
@@ -601,9 +604,36 @@ float Replace::estimateTargetDensity(const PlaceOptions& options,
   return density;
 }
 
+void PlaceOptions::validatePhysics(utl::Logger* logger) const
+{
+  utl::Validator val(logger, GPL);
+
+  val.check_range(
+      "physics_thermal_weight", physicsThermalWeight, 0.0f, 100.0f, 430);
+  val.check_range("physics_ir_weight", physicsIrWeight, 0.0f, 100.0f, 431);
+  val.check_range("physics_reliability_weight",
+                  physicsReliabilityWeight,
+                  0.0f,
+                  100.0f,
+                  432);
+  val.check_range(
+      "physics_timing_weight", physicsTimingWeight, 0.0f, 100.0f, 433);
+  val.check_range("physics_force_ratio", physicsForceRatio, 0.0f, 10.0f, 434);
+  val.check_positive(
+      "physics_max_inflation_ratio", physicsMaxInflationRatio, 435);
+  val.check_range(
+      "physics_max_inflation_total", physicsMaxInflationTotal, 0.0f, 1.0f, 436);
+  val.check_non_negative("physics_supply_voltage", physicsSupplyVoltage, 437);
+  val.check_non_negative("physics_pad_pitch", physicsPadPitch, 438);
+  for (const int overflow : physicsDrivenOverflows) {
+    val.check_range("physics_driven_overflows", overflow, 0, 100, 439);
+  }
+}
+
 void PlaceOptions::validate(utl::Logger* logger)
 {
   utl::Validator val(logger, GPL);
+  validatePhysics(logger);
 
   val.check_positive("bin_grid_count", binGridCntX, 400);
   val.check_range("density", density, 0.0f, 1.0f, 401);
@@ -638,27 +668,6 @@ void PlaceOptions::validate(utl::Logger* logger)
       "routability_max_inflation_total", routabilityMaxInflationTotal, 426);
   val.check_positive(
       "routability_net_weight_max", routabilityNetWeightMax, 427);
-  val.check_range(
-      "physics_thermal_weight", physicsThermalWeight, 0.0f, 100.0f, 430);
-  val.check_range("physics_ir_weight", physicsIrWeight, 0.0f, 100.0f, 431);
-  val.check_range("physics_reliability_weight",
-                  physicsReliabilityWeight,
-                  0.0f,
-                  100.0f,
-                  432);
-  val.check_range(
-      "physics_timing_weight", physicsTimingWeight, 0.0f, 100.0f, 433);
-  val.check_range("physics_force_ratio", physicsForceRatio, 0.0f, 10.0f, 434);
-  val.check_positive(
-      "physics_max_inflation_ratio", physicsMaxInflationRatio, 435);
-  val.check_range(
-      "physics_max_inflation_total", physicsMaxInflationTotal, 0.0f, 1.0f, 436);
-  val.check_non_negative("physics_supply_voltage", physicsSupplyVoltage, 437);
-  val.check_non_negative("physics_pad_pitch", physicsPadPitch, 438);
-  for (const int overflow : physicsDrivenOverflows) {
-    val.check_range("physics_driven_overflows", overflow, 0, 100, 439);
-  }
-
   val.check_range("routability_congested_nets_percentage",
                   routabilityCongestedNetsPercentage,
                   0.0f,
