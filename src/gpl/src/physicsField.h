@@ -38,12 +38,16 @@ struct PhysicsModelParams
   // Silicon is ~1.3e-4 W/(um*K); the effective die+BEOL value is lower.
   float thermal_conductivity_w_per_um_k = 1.0e-4f;
   // Vertical heat removal to ambient through die/package, W/(um^2*K).
-  float package_conductance_w_per_um2_k = 2.0e-9f;
+  // 1.25e-8 corresponds to a heat-sinked package where 50 W/cm^2 of
+  // uniform power raises the junction ~40 K above ambient.
+  float package_conductance_w_per_um2_k = 1.25e-8f;
 
   // Supply: sigma * lap(V) = -J, V = vdd at pads.
   float vdd_v = 1.1f;
-  // Effective supply-mesh sheet conductance, S (1/ohm per square).
-  float sheet_conductance_s = 2.0f;
+  // Effective supply-mesh sheet conductance, S (1/ohm per square), of the
+  // lumped VDD grid between the pads and the cells. 0.01 S puts a
+  // 50 W/cm^2 block a few hundred um from its pads at a few percent drop.
+  float sheet_conductance_s = 0.01f;
   // Bump pitch in um; <= 0 models a boundary ring of pads (wire-bond).
   float pad_pitch_um = 0.0f;
 
