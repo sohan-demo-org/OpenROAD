@@ -409,6 +409,14 @@ proc estimate_target_density { args } {
   return $density_estimation
 }
 
+sta::define_cmd_args "report_physics_placement" {}
+
+proc report_physics_placement { args } {
+  sta::parse_key_args "report_physics_placement" args keys {} flags {}
+  sta::check_argc_eq0 "report_physics_placement" $args
+  gpl::report_physics_placement_cmd
+}
+
 namespace eval gpl {
 proc place_config_block { } {
   set block [ord::get_db_block]
