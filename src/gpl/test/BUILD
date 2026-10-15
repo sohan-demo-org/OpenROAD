@@ -215,6 +215,18 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "physics_field_test",
+    srcs = ["physics_field_test.cc"],
+    env = GPU_ENV_OFF,
+    linkstatic = True,  # TODO: remove once deps define all symbols
+    deps = [
+        "//src/gpl:gpl_impl",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # GPU FFT backend unit test (plain C++ TU; the GPU code arrives through
 # //src/gpl's :gpl_kokkos dependency under --config=gpu).
 cc_test(
