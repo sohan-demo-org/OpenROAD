@@ -4,6 +4,8 @@
 %{
 #include "ord/OpenRoad.hh"
 #include "gpl/Replace.h"
+#include "physicsHeatMap.h"
+#include "physicsReport.h"
 #include "odb/db.h"
 #include "utl/Logger.h"
 #include "utl/cpu_topology.h"
@@ -28,6 +30,18 @@ static gpl::PlaceOptions getOptions(
   checkFlag(flags, "-timing_driven", options.timingDrivenMode);
   checkFlag(flags, "-timing_driven_repair_timing", options.timingDrivenRepairTiming);
   checkFlag(flags, "-routability_driven", options.routabilityDrivenMode);
+  checkFlag(flags, "-physics_driven", options.physicsDrivenMode);
+  checkKey(keys, "-physics_driven_overflows", options.physicsDrivenOverflows);
+  checkKey(keys, "-physics_thermal_weight", options.physicsThermalWeight);
+  checkKey(keys, "-physics_ir_weight", options.physicsIrWeight);
+  checkKey(keys, "-physics_reliability_weight", options.physicsReliabilityWeight);
+  checkKey(keys, "-physics_timing_weight", options.physicsTimingWeight);
+  checkKey(keys, "-physics_force_ratio", options.physicsForceRatio);
+  checkKey(keys, "-physics_max_inflation_ratio", options.physicsMaxInflationRatio);
+  checkKey(keys, "-physics_max_inflation_total", options.physicsMaxInflationTotal);
+  checkKey(keys, "-physics_ambient_temperature", options.physicsAmbientTemperature);
+  checkKey(keys, "-physics_supply_voltage", options.physicsSupplyVoltage);
+  checkKey(keys, "-physics_pad_pitch", options.physicsPadPitch);
   checkFlag(flags, "-virtual_cts", options.virtualCtsMode);
   checkFlag(flags, "-routability_use_grt", options.routabilityUseRudy, false);
   checkFlag(
@@ -189,6 +203,15 @@ replace_nesterov_place_cmd(const std::map<std::string, std::string>& keys,
   Replace* replace = getReplace();
   int threads = placementThreads();
   replace->doNesterovPlace(threads, options);
+  gpl::invalidatePhysicsHeatMaps();
+}
+
+void
+report_physics_placement_cmd()
+{
+  Replace* replace = getReplace();
+  utl::Logger* logger = ord::OpenRoad::openRoad()->getLogger();
+  gpl::reportPhysicsPlacement(replace->getPhysicsSnapshot(), logger);
 }
 
 
@@ -210,6 +233,7 @@ replace_incremental_place_cmd(const std::map<std::string, std::string>& keys,
   Replace* replace = getReplace();
   int threads = placementThreads();
   replace->doIncrementalPlace(threads, options);
+  gpl::invalidatePhysicsHeatMaps();
 }
 
 

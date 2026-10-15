@@ -348,6 +348,11 @@ void GNet::setCustomWeight(float customWeight)
   customWeight_ = customWeight;
 }
 
+void GNet::setPhysicsWeight(float physicsWeight)
+{
+  physicsWeight_ = physicsWeight;
+}
+
 void GNet::addGPin(GPin* gPin)
 {
   gPins_.push_back(gPin);
@@ -1199,6 +1204,7 @@ NesterovPlaceVars::NesterovPlaceVars(const PlaceOptions& options,
       timingDrivenMode(options.timingDrivenMode),
       timingDrivenRepairTiming(options.timingDrivenRepairTiming),
       timingDrivenRepairTnsEndPercent(options.timingDrivenRepairTnsEndPercent),
+      physicsDrivenMode(options.physicsDrivenMode),
       routability_driven_mode(options.routabilityDrivenMode),
       disableRevertIfDiverge(options.disableRevertIfDiverge)
 {
@@ -3304,6 +3310,20 @@ float NesterovBase::getStepLength(
 // nb_->updateWireLengthForceWA(wireLengthCoefX_, wireLengthCoefY_); // WL
 // update
 //
+void NesterovBase::setPhysicsGradients(std::vector<FloatPoint> grads,
+                                       float coef)
+{
+  physicsGrads_ = std::move(grads);
+  physicsCoef_ = coef;
+}
+
+void NesterovBase::clearPhysicsGradients()
+{
+  physicsGrads_.clear();
+  physicsCoef_ = 0;
+  physicsGradSum_ = 0;
+}
+
 void NesterovBase::updateGradients(std::vector<FloatPoint>& sumGrads,
                                    std::vector<FloatPoint>& wireLengthGrads,
                                    std::vector<FloatPoint>& densityGrads,
@@ -3317,6 +3337,7 @@ void NesterovBase::updateGradients(std::vector<FloatPoint>& sumGrads,
 
   wireLengthGradSum_ = 0;
   densityGradSum_ = 0;
+  physicsGradSum_ = 0;
 
   float gradSum = 0;
 
@@ -3383,12 +3404,20 @@ void NesterovBase::updateGradients(std::vector<FloatPoint>& sumGrads,
   // Two-phase: parallel per-cell compute, then deterministic serial reduce.
 
   const size_t numGCells = nb_gcells_.size();
+  const bool usePhysics
+      = physicsCoef_ != 0 && physicsGrads_.size() == numGCells;
 #pragma omp parallel for num_threads(nbc_->getNumThreads())
   for (size_t i = 0; i < numGCells; i++) {
     GCell* gCell = nb_gcells_[i];
 
     sumGrads[i].x = wireLengthGrads[i].x + densityPenalty_ * densityGrads[i].x;
     sumGrads[i].y = wireLengthGrads[i].y + densityPenalty_ * densityGrads[i].y;
+
+    // Physics-driven field force (see physicsBase.cpp); empty when unused.
+    if (usePhysics) {
+      sumGrads[i].x += physicsCoef_ * physicsGrads_[i].x;
+      sumGrads[i].y += physicsCoef_ * physicsGrads_[i].y;
+    }
 
     FloatPoint wireLengthPreCondi = nbc_->getWireLengthPreconditioner(gCell);
     FloatPoint densityPrecondi = getDensityPreconditioner(gCell);
@@ -3413,6 +3442,11 @@ void NesterovBase::updateGradients(std::vector<FloatPoint>& sumGrads,
 
     densityGradSum_ += std::fabs(densityGrads[i].x);
     densityGradSum_ += std::fabs(densityGrads[i].y);
+
+    if (usePhysics) {
+      physicsGradSum_ += std::fabs(physicsCoef_ * physicsGrads_[i].x);
+      physicsGradSum_ += std::fabs(physicsCoef_ * physicsGrads_[i].y);
+    }
 
     gradSum += std::fabs(sumGrads[i].x) + std::fabs(sumGrads[i].y);
   }

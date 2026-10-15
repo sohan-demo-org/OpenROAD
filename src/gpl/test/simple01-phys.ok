@@ -1,0 +1,147 @@
+[INFO ODB-0227] LEF file: ./nangate45.lef, created 22 layers, 27 vias, 134 library cells
+[INFO ODB-0128] Design: gcd
+[INFO ODB-0130]     Created 54 pins.
+[INFO ODB-0131]     Created 286 components and 1624 component-terminals.
+[INFO ODB-0133]     Created 356 nets and 1052 connections.
+[INFO GPL-0001] ---- Initialize GPL Main Data Structures
+[INFO GPL-0002] DBU: 2000
+[INFO GPL-0003] SiteSize: (  0.190  1.400 ) um
+[INFO GPL-0004] CoreBBox: (  0.000  0.000 ) ( 30.970 30.800 ) um
+[INFO GPL-0016] Core area:                     953.876 um^2
+[INFO GPL-0036] Movable instances area:        553.280 um^2
+[INFO GPL-0037] Total instances area:          553.280 um^2
+[INFO GPL-0035] Pin density area adjust:        47.712 um^2
+[INFO GPL-0032] ---- Initialize Region: Top-level
+[INFO GPL-0006] Number of instances:               286
+[INFO GPL-0007] Movable instances:                 286
+[INFO GPL-0008] Fixed instances:                     0
+[INFO GPL-0009] Dummy instances:                     0
+[INFO GPL-0010] Number of nets:                    356
+[INFO GPL-0011] Number of pins:                   1106
+[INFO GPL-0012] Die BBox:       (  0.000  0.000 ) ( 30.970 30.800 ) um
+[INFO GPL-0013] Placement BBox: (  0.000  0.000 ) ( 30.970 30.800 ) um
+[INFO GPL-0014] Region name: top-level.
+[INFO GPL-0015] Region area:                   953.876 um^2
+[INFO GPL-0017] Fixed instances area:            0.000 um^2
+[INFO GPL-0018] Movable instances area:        600.992 um^2
+[INFO GPL-0019] Utilization:                    63.005 %
+[INFO GPL-0020] Standard cells area:           600.992 um^2
+[INFO GPL-0021] Large instances area:            0.000 um^2
+[INFO GPL-0005] ---- Execute Conjugate Gradient Initial Placement.
+[INFO GPL-0051] Source of initial instance position counters:
+	Odb location = 0	Core center = 286	Region center = 0
+[InitialPlace]  Iter: 1 conjugate gradient residual: 0.00000011 HPWL: 5614340
+[InitialPlace]  Iter: 2 conjugate gradient residual: 0.00000011 HPWL: 4998803
+[InitialPlace]  Iter: 3 conjugate gradient residual: 0.00000010 HPWL: 4991131
+[InitialPlace]  Iter: 4 conjugate gradient residual: 0.00000010 HPWL: 4997865
+[InitialPlace]  Iter: 5 conjugate gradient residual: 0.00000009 HPWL: 5002847
+[INFO GPL-0033] ---- Initialize Nesterov Region: Top-level
+[INFO GPL-0023] Placement target density:       0.7000
+[INFO GPL-0024] Movable insts average area:      2.101 um^2
+[INFO GPL-0025] Ideal bin area:                  3.002 um^2
+[INFO GPL-0026] Ideal bin count:                   317
+[INFO GPL-0027] Total bin area:                953.876 um^2
+[INFO GPL-0028] Bin count (X, Y):          16 ,     16
+[INFO GPL-0029] Bin size (W * H):       1.936 *  1.925 um
+[INFO GPL-0030] Number of bins:                    256
+[INFO GPL-0084] ---- Execute Nesterov Global Placement.
+[INFO GPL-0031] HPWL: Half-Perimeter Wirelength
+Iteration | Overflow |     HPWL (um) |  HPWL(%) |   Penalty | Group
+---------------------------------------------------------------
+        0 |   0.8364 |  1.778774e+03 |   +0.00% |  5.36e-14 |      
+[INFO GPL-0200] Physics-driven iteration 1/4, iter: 3, overflow: 0.764.
+[INFO GPL-0201] Physics-driven: instance power from STA (liberty power tables) for 286 cells, total 0.0007948 W.
+[INFO GPL-0076] Removing fillers, count: Before: 32, After: 0 (-100.00%)
+[INFO GPL-0077] Filler area (um^2)     : Before: 66.721, After: 0.000 (-100.00%)
+[INFO GPL-0078] Removed fillers count: 32, area removed: 65.493 um^2. Remaining area to be compensated by modifying density: 24.499 um^2
+[INFO GPL-0079] New target density: 0.7243959
+[INFO GPL-0203] Physics-driven: 2 stressed bins, 139 cells inflated, inflated area 14.97% of movable area (budget 15.00%).
+[INFO GPL-0202] Physics-driven pass 1 (iter 3, overflow 0.764): power 0.0007948 W (max bin density 5.82e-05 W/um^2), Tmax 93.8 C (avg 91.7), IR drop max 26.6 mV (2.41%), derate max 1.143, stress max 1.00
+       10 |   0.7465 |  2.046783e+03 |  +15.07% |  8.74e-14 |      
+       20 |   0.7519 |  2.037648e+03 |   -0.45% |  1.42e-13 |      
+       30 |   0.7532 |  2.037525e+03 |   -0.01% |  2.32e-13 |      
+       40 |   0.7524 |  2.037905e+03 |   +0.02% |  3.78e-13 |      
+       50 |   0.7526 |  2.037833e+03 |   -0.00% |  6.15e-13 |      
+       60 |   0.7525 |  2.037934e+03 |   +0.00% |  1.00e-12 |      
+       70 |   0.7525 |  2.037980e+03 |   +0.00% |  1.63e-12 |      
+       80 |   0.7522 |  2.038243e+03 |   +0.01% |  2.66e-12 |      
+       90 |   0.7520 |  2.038613e+03 |   +0.02% |  4.33e-12 |      
+      100 |   0.7516 |  2.039146e+03 |   +0.03% |  7.05e-12 |      
+      110 |   0.7510 |  2.040040e+03 |   +0.04% |  1.15e-11 |      
+      120 |   0.7500 |  2.041469e+03 |   +0.07% |  1.87e-11 |      
+      130 |   0.7484 |  2.043805e+03 |   +0.11% |  3.05e-11 |      
+      140 |   0.7458 |  2.047444e+03 |   +0.18% |  4.97e-11 |      
+      150 |   0.7414 |  2.052946e+03 |   +0.27% |  8.09e-11 |      
+      160 |   0.7345 |  2.061354e+03 |   +0.41% |  1.32e-10 |      
+      170 |   0.7257 |  2.074055e+03 |   +0.62% |  2.15e-10 |      
+      180 |   0.7151 |  2.091651e+03 |   +0.85% |  3.50e-10 |      
+      190 |   0.6990 |  2.115912e+03 |   +1.16% |  5.69e-10 |      
+      200 |   0.6794 |  2.149796e+03 |   +1.60% |  9.28e-10 |      
+      210 |   0.6485 |  2.189755e+03 |   +1.86% |  1.51e-09 |      
+[INFO GPL-0200] Physics-driven iteration 2/4, iter: 215, overflow: 0.635.
+[INFO GPL-0201] Physics-driven: instance power from STA (liberty power tables) for 286 cells, total 0.0007948 W.
+[INFO GPL-0203] Physics-driven: 7 stressed bins, 48 cells inflated, inflated area 6.51% of movable area (budget 15.00%).
+[INFO GPL-0202] Physics-driven pass 2 (iter 215, overflow 0.635): power 0.0007948 W (max bin density 1.28e-05 W/um^2), Tmax 92.4 C (avg 91.7), IR drop max 12.7 mV (1.16%), derate max 1.120, stress max 1.00
+      220 |   0.6093 |  2.208965e+03 |   +0.88% |  2.46e-09 |      
+      230 |   0.5702 |  2.262235e+03 |   +2.41% |  4.01e-09 |      
+      240 |   0.5286 |  2.298704e+03 |   +1.61% |  6.53e-09 |      
+      250 |   0.4763 |  2.324957e+03 |   +1.14% |  1.06e-08 |      
+      260 |   0.4183 |  2.316780e+03 |   -0.35% |  1.73e-08 |      
+[INFO GPL-0200] Physics-driven iteration 3/4, iter: 266, overflow: 0.391.
+[INFO GPL-0201] Physics-driven: instance power from STA (liberty power tables) for 286 cells, total 0.0007948 W.
+[INFO GPL-0203] Physics-driven: 10 stressed bins, 34 cells inflated, inflated area 6.12% of movable area (budget 15.00%).
+[INFO GPL-0202] Physics-driven pass 3 (iter 266, overflow 0.391): power 0.0007948 W (max bin density 7.41e-06 W/um^2), Tmax 91.9 C (avg 91.7), IR drop max 7.5 mV (0.68%), derate max 1.112, stress max 1.00
+      270 |   0.3584 |  2.346327e+03 |   +1.28% |  2.82e-08 |      
+      280 |   0.3267 |  2.369256e+03 |   +0.98% |  4.37e-08 |      
+      290 |   0.3055 |  2.402836e+03 |   +1.42% |  6.44e-08 |      
+      300 |   0.2764 |  2.420218e+03 |   +0.72% |  9.49e-08 |      
+      310 |   0.2414 |  2.438811e+03 |   +0.77% |  1.40e-07 |      
+      320 |   0.2117 |  2.453477e+03 |   +0.60% |  2.06e-07 |      
+[INFO GPL-0200] Physics-driven iteration 4/4, iter: 327, overflow: 0.191.
+[INFO GPL-0201] Physics-driven: instance power from STA (liberty power tables) for 286 cells, total 0.0007948 W.
+[INFO GPL-0203] Physics-driven: 1 stressed bins, 2 cells inflated, inflated area 1.71% of movable area (budget 15.00%).
+[INFO GPL-0202] Physics-driven pass 4 (iter 327, overflow 0.191): power 0.0007948 W (max bin density 1.05e-05 W/um^2), Tmax 91.9 C (avg 91.7), IR drop max 5.3 mV (0.48%), derate max 1.108, stress max 1.00
+      330 |   0.1786 |  2.452004e+03 |   -0.06% |  3.03e-07 |      
+      340 |   0.1476 |  2.465143e+03 |   +0.54% |  4.47e-07 |      
+      350 |   0.1309 |  2.481481e+03 |   +0.66% |  6.58e-07 |      
+      360 |   0.1104 |  2.493658e+03 |   +0.49% |  9.70e-07 |      
+      366 |   0.1000 |  2.501434e+03 |          |  1.27e-06 |      
+---------------------------------------------------------------
+[INFO GPL-1001] Global placement finished at iteration 366
+[INFO GPL-1002] Placed Cell Area              611.2747
+[INFO GPL-1003] Available Free Area           953.8760
+[INFO GPL-1004] Minimum Feasible Density        0.6400 (cell_area / free_area)
+[INFO GPL-1006]   Suggested Target Densities:
+[INFO GPL-1007]     - For 90% usage of free space: 0.7120
+[INFO GPL-1008]     - For 80% usage of free space: 0.8010
+[INFO GPL-0201] Physics-driven: instance power from STA (liberty power tables) for 286 cells, total 0.0007948 W.
+[INFO GPL-0202] Physics-driven final pass 5 (iter 367, overflow 0.100): power 0.0007948 W (max bin density 6.4e-06 W/um^2), Tmax 91.9 C (avg 91.7), IR drop max 4.9 mV (0.44%), derate max 1.107, stress max 1.00
+[INFO GPL-0204] Physics-driven passes: 4, inflated area: 1.71%
+[INFO GPL-1014] Final placement area: 600.99 (+0.00%)
+[INFO GPL-1018] Final HPWL (um): 2504.04
+
+Physics-driven placement report
+--------------------------------------------------
+Power source           : OpenSTA (liberty power)
+Total power            : 7.9483e-04 W
+Max temperature        : 91.93 C
+Avg temperature        : 91.66 C
+Max IR drop            : 4.851 mV (0.44%)
+Max delay derate       : 1.1073
+Max reliability stress : 1.0000
+Physics passes         : 4
+Inflated area          : 1.71%
+Hottest bin            : (15, 12) at (30.00, 24.06) um
+Grid                   : 16 x 16 bins of 1.94 x 1.92 um
+
+Pass history
+pass   iter  overflow   Tmax(C)  IRmax(mV)  derateMax
+   1      2    0.7643     93.82     26.551     1.1432
+   2    214    0.6348     92.36     12.716     1.1201
+   3    265    0.3907     91.90      7.489     1.1115
+   4    326    0.1911     91.87      5.272     1.1080
+   5    366    0.1000     91.93      4.851     1.1073
+
+Differences found at line 63.
+    - _276_ NOR2_X2 + PLACED ( 35480 23996 ) N ;
+    - _276_ NOR2_X2 + PLACED ( 39190 57303 ) N ;

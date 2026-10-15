@@ -74,12 +74,24 @@ proc global_placement { args } {
       -virtual_cts_max_skew_fraction \
       -random_seed \
       -perturb_dist \
+      -physics_driven_overflows \
+      -physics_thermal_weight \
+      -physics_ir_weight \
+      -physics_reliability_weight \
+      -physics_timing_weight \
+      -physics_force_ratio \
+      -physics_max_inflation_ratio \
+      -physics_max_inflation_total \
+      -physics_ambient_temperature \
+      -physics_supply_voltage \
+      -physics_pad_pitch \
       -pad_left -pad_right} \
     flags {-skip_initial_place \
       -force_center_initial_place \
       -skip_nesterov_place \
       -timing_driven \
       -timing_driven_repair_timing \
+      -physics_driven \
       -routability_driven \
       -virtual_cts \
       -routability_use_grt \
@@ -395,6 +407,14 @@ proc estimate_target_density { args } {
   gpl::replace_reset_cmd
 
   return $density_estimation
+}
+
+sta::define_cmd_args "report_physics_placement" {}
+
+proc report_physics_placement { args } {
+  sta::parse_key_args "report_physics_placement" args keys {} flags {}
+  sta::check_argc_eq0 "report_physics_placement" $args
+  gpl::report_physics_placement_cmd
 }
 
 namespace eval gpl {

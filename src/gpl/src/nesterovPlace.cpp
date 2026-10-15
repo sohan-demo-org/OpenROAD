@@ -21,6 +21,7 @@
 #include "clockBase.h"
 #include "nesterovBase.h"
 #include "odb/db.h"
+#include "physicsBase.h"
 #include "placerBase.h"
 #include "routeBase.h"
 #include "timingBase.h"
@@ -37,6 +38,7 @@ NesterovPlace::NesterovPlace(const NesterovPlaceVars& npVars,
                              std::shared_ptr<RouteBase> rb,
                              std::shared_ptr<TimingBase> tb,
                              std::shared_ptr<ClockBase> cb,
+                             std::shared_ptr<PhysicsBase> phb,
                              std::unique_ptr<gpl::AbstractGraphics> graphics,
                              utl::Logger* log)
     : npVars_(npVars)
@@ -48,6 +50,7 @@ NesterovPlace::NesterovPlace(const NesterovPlaceVars& npVars,
   rb_ = std::move(rb);
   tb_ = std::move(tb);
   cb_ = std::move(cb);
+  phb_ = std::move(phb);
   log_ = log;
 
   db_cbk_ = std::make_unique<nesterovDbCbk>(this);
@@ -371,6 +374,34 @@ void NesterovPlace::updateIterGraphics(
     }
     final_routability_image_saved = true;
   }
+}
+
+void NesterovPlace::runPhysicsDriven(int iter, bool final)
+{
+  if (!npVars_.physicsDrivenMode || !phb_) {
+    return;
+  }
+  if (final) {
+    phb_->clearActuators();
+    for (auto& nb : nbVec_) {
+      nb->clearPhysicsGradients();
+    }
+    phb_->executePhysicsDriven(
+        iter, average_overflow_unscaled_, /*apply_actuators=*/false);
+    return;
+  }
+  if (!phb_->isPhysicsOverflow(average_overflow_unscaled_)) {
+    return;
+  }
+  log_->info(GPL,
+             200,
+             "Physics-driven iteration {}/{}, iter: {}, overflow: {:.3f}.",
+             ++npVars_.physicsDrivenIterCounter,
+             phb_->getOverflowCount(),
+             iter + 1,
+             average_overflow_unscaled_);
+  phb_->executePhysicsDriven(
+      iter, average_overflow_unscaled_, /*apply_actuators=*/true);
 }
 
 void NesterovPlace::runTimingDriven(int iter,
@@ -719,6 +750,11 @@ bool NesterovPlace::isDiverged(float& diverge_snapshot_WlCoefX,
       nbc_->updateWireLengthForceWA(wireLengthCoefX_, wireLengthCoefY_);
       for (auto& nb : nbVec_) {
         nb->revertToSnapshot();
+      }
+      // Physics gradients must not outlive the revert; also back off the
+      // physics force for the remaining passes (GPL-0205).
+      if (npVars_.physicsDrivenMode && phb_) {
+        phb_->notifyDivergence();
       }
       num_region_diverged_ = 0;
     } else {
@@ -1124,6 +1160,15 @@ void NesterovPlace::reportResults(int nesterov_iter,
     log_->metric("gpl__area__timing_delta__percent", td_diff);
   }
 
+  if (npVars_.physicsDrivenMode && phb_) {
+    log_->info(GPL,
+               204,
+               "Physics-driven passes: {}, inflated area: {:.2f}%",
+               phb_->getPassCount(),
+               phb_->getInflatedAreaPercent());
+    log_->metric("gpl__physics__passes", phb_->getPassCount());
+  }
+
   int64_t new_area = 0;
   for (auto& nb : nbVec_) {
     new_area += nb->getNesterovInstsArea();
@@ -1281,6 +1326,8 @@ int NesterovPlace::doNesterovPlace(int start_iter)
                     is_routability_gpl_iter,
                     virtual_cts_count);
 
+    runPhysicsDriven(nesterov_iter, /*final=*/false);
+
     if (isDiverged(diverge_snapshot_WlCoefX,
                    diverge_snapshot_WlCoefY,
                    is_diverge_snapshot_saved)) {
@@ -1321,6 +1368,10 @@ int NesterovPlace::doNesterovPlace(int start_iter)
   // them once now so any post-placement host consumer sees the final
   // boxes. No-op on the CPU backend.
   nbc_->mirrorNetBoxesToHost();
+
+  // Final physics report on the finished placement (no actuators). Runs
+  // before reportResults so the restored GCell sizes are what gets reported.
+  runPhysicsDriven(nesterov_iter, /*final=*/true);
 
   reportResults(nesterov_iter, original_area, td_accumulated_delta_area);
 

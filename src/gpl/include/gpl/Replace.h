@@ -44,6 +44,9 @@ class RouteBase;
 class TimingBase;
 class ClockBase;
 
+class PhysicsBase;
+struct PhysicsSnapshot;
+
 class InitialPlace;
 class NesterovPlace;
 
@@ -136,8 +139,33 @@ struct PlaceOptions
   // Concurrent IO pin + cell placement
   bool placeIosMode = false;
 
+  // Physics-driven mode: couple power, temperature, IR drop, timing derate
+  // and reliability stress into the Nesterov objective (see physicsBase.h).
+  bool physicsDrivenMode = false;
+  // Overflow checkpoints (percent, descending) at which a physics pass runs.
+  std::vector<int> physicsDrivenOverflows{79, 64, 40, 20};
+  // Relative strength of each field in the per-cell physics force.
+  float physicsThermalWeight = 1.0;
+  float physicsIrWeight = 1.0;
+  float physicsReliabilityWeight = 1.0;
+  // Exponent applied to the per-bin delay derate when reweighting nets.
+  float physicsTimingWeight = 1.0;
+  // Target ratio sum|physics force| / sum|wirelength gradient|.
+  float physicsForceRatio = 0.1;
+  // Thermal/reliability inflation limits (same semantics as routability).
+  float physicsMaxInflationRatio = 2.0;
+  float physicsMaxInflationTotal = 0.15;
+  // Model parameters. Supply voltage 0 means derive from liberty/SDC.
+  float physicsAmbientTemperature = 25.0;
+  float physicsSupplyVoltage = 0.0;
+  // Supply bump pitch in microns; 0 models a wire-bond boundary ring.
+  float physicsPadPitch = 0.0;
+
   void skipIo();
   void validate(utl::Logger* log);
+  // Range checks for the -physics_* options; run whenever physics-driven
+  // mode is requested (validate() also calls it).
+  void validatePhysics(utl::Logger* log) const;
 };
 
 class Replace
@@ -181,6 +209,9 @@ class Replace
   float getUniformTargetDensity(const PlaceOptions& options, int threads);
   float estimateTargetDensity(const PlaceOptions& options, int threads);
 
+  // Fields and summary of the last physics-driven run (nullptr if none).
+  const PhysicsSnapshot* getPhysicsSnapshot() const;
+
   void setDebug(int pause_iterations,
                 int update_iterations,
                 bool draw_bins,
@@ -219,6 +250,8 @@ class Replace
   std::vector<std::shared_ptr<NesterovBase>> nbVec_;
   std::shared_ptr<RouteBase> rb_;
   std::shared_ptr<TimingBase> tb_;
+  std::shared_ptr<PhysicsBase> phb_;
+  std::unique_ptr<PhysicsSnapshot> physics_snapshot_;
   std::shared_ptr<ClockBase> cb_;
 
   std::unique_ptr<InitialPlace> ip_;

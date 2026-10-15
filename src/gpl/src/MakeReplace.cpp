@@ -6,6 +6,7 @@
 #include "gpl/Replace.h"
 #include "graphicsImpl.h"
 #include "graphicsNone.h"
+#include "physicsHeatMap.h"
 #include "tcl.h"
 #include "utl/Logger.h"
 #include "utl/decode.h"
@@ -32,6 +33,7 @@ void initReplaceGraphics(Replace* replace, utl::Logger* log)
   } else {
     replace->setGraphicsInterface(gpl::GraphicsImpl(log));
   }
+  registerPhysicsHeatMaps(replace, log);
 }
 
 }  // namespace gpl

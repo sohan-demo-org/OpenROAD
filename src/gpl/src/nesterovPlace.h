@@ -30,6 +30,7 @@ class PlacerBaseCommon;
 class Instance;
 class RouteBase;
 class TimingBase;
+class PhysicsBase;
 class ClockBase;
 
 class NesterovPlace
@@ -44,6 +45,7 @@ class NesterovPlace
                 std::shared_ptr<RouteBase> rb,
                 std::shared_ptr<TimingBase> tb,
                 std::shared_ptr<ClockBase> cb,
+                std::shared_ptr<PhysicsBase> phb,
                 std::unique_ptr<AbstractGraphics> graphics,
                 utl::Logger* log);
   ~NesterovPlace();
@@ -116,6 +118,10 @@ class NesterovPlace
                        int64_t& td_accumulated_delta_area,
                        bool is_routability_gpl_iter,
                        int& virtual_cts_count);
+  // Physics-driven checkpoint pass (physicsBase.h). Runs after the
+  // timing-driven hook each iteration; final=true after the loop reports
+  // the fields of the finished placement without touching the placer.
+  void runPhysicsDriven(int iter, bool final);
   bool isDiverged(float& diverge_snapshot_WlCoefX,
                   float& diverge_snapshot_WlCoefY,
                   bool& is_diverge_snapshot_saved);
@@ -173,6 +179,7 @@ class NesterovPlace
   std::shared_ptr<RouteBase> rb_;
   std::shared_ptr<TimingBase> tb_;
   std::shared_ptr<ClockBase> cb_;
+  std::shared_ptr<PhysicsBase> phb_;
   NesterovPlaceVars npVars_;
   std::unique_ptr<AbstractGraphics> graphics_;
 

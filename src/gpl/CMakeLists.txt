@@ -40,6 +40,8 @@ add_library(gpl_lib
   src/densityGradient.cpp
   src/routeBase.cpp
   src/timingBase.cpp
+  src/physicsField.cpp
+  src/physicsBase.cpp
   src/clockBase.cpp
   src/graphicsNone.cpp
   src/solver.cpp
@@ -128,7 +130,13 @@ target_sources(gpl
   PRIVATE
     src/MakeReplace.cpp
     src/graphicsImpl.cpp
+    src/physicsHeatMap.cpp
+    src/physicsReport.cpp
 )
+
+# The swig wrapper and the physics UI sources include private gpl headers
+# (physicsBase.h, physicsReport.h) from src/.
+target_include_directories(gpl PRIVATE src)
 
 messages(TARGET gpl)
 messages(TARGET gpl_lib)
