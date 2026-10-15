@@ -129,28 +129,45 @@ void PhysicsFields::buildPadBins()
   }
 }
 
-// Red-black SOR sweep of the 5-point stencil
-//   diag_extra * u - kx * (u[x-1] + u[x+1] - nx * u) - ky * (...) = rhs
-// with Neumann (zero-flux: missing neighbors drop out) lateral edges and
-// optional Dirichlet (u = 0) bins flagged in `fixed`. Returns the number of
-// iterations run; `u` must be pre-sized to grid().size().
+// Red-black SOR on the 5-point stencil
+//   diag_extra * u + kx * (nx * u - u[x-1] - u[x+1])
+//                  + ky * (ny * u - u[y-1] - u[y+1]) = rhs
+// with Neumann (zero-flux: missing neighbors drop out) lateral edges.
+// Dirichlet (u = 0) bins are flagged in `fixed`. For an all-Neumann system
+// `mean_target` pins the constant mode, which plain SOR relaxes extremely
+// slowly when diag_extra is small: the discrete equations sum to
+// diag_extra * sum(u) = sum(rhs), so the mean is known exactly and is
+// re-imposed after every sweep. Converged when the max residual drops below
+// tol * max|rhs| and the max update below tol * max|u|. Returns the number of
+// sweeps run; `u` must be pre-sized to grid().size().
 int PhysicsFields::sorSolve(const std::vector<double>& rhs,
                             double kx,
                             double ky,
                             double diag_extra,
                             const std::vector<bool>* fixed,
+                            const double* mean_target,
                             std::vector<double>& u) const
 {
   const int cx = grid_.cnt_x;
   const int cy = grid_.cnt_y;
+  const size_t n = grid_.size();
   const double omega = optimalOmega(cx, cy);
   const double tol = params_.solver_tolerance;
   const int max_iters = std::max(params_.max_solver_iters, 1);
+
+  double max_rhs = 0.0;
+  for (size_t i = 0; i < n; i++) {
+    max_rhs = std::max(max_rhs, std::abs(rhs[i]));
+  }
+  if (mean_target != nullptr) {
+    std::fill(u.begin(), u.end(), *mean_target);
+  }
 
   int iter = 0;
   for (; iter < max_iters; iter++) {
     double max_delta = 0.0;
     double max_abs = 0.0;
+    double max_res = 0.0;
     for (int color = 0; color < 2; color++) {
       for (int x = 0; x < cx; x++) {
         const size_t col = grid_.index(x, 0);
@@ -182,12 +199,23 @@ int PhysicsFields::sorSolve(const std::vector<double>& rhs,
           const double gs = acc / diag;
           const double next = old + omega * (gs - old);
           u[idx] = next;
+          max_res = std::max(max_res, std::abs(diag * (gs - old)));
           max_delta = std::max(max_delta, std::abs(next - old));
           max_abs = std::max(max_abs, std::abs(next));
         }
       }
     }
-    if (max_delta <= tol * std::max(max_abs, 1e-300)) {
+    if (mean_target != nullptr) {
+      double sum = 0.0;
+      for (size_t i = 0; i < n; i++) {
+        sum += u[i];
+      }
+      const double shift = *mean_target - sum / n;
+      for (size_t i = 0; i < n; i++) {
+        u[i] += shift;
+      }
+    }
+    if (max_res <= tol * max_rhs && max_delta <= tol * max_abs) {
       iter++;
       break;
     }
@@ -216,12 +244,19 @@ void PhysicsFields::solveThermal()
 
   const double k = std::max<double>(params_.thermal_conductivity_w_per_um_k,
                                     std::numeric_limits<double>::min());
-  const double h = std::max<double>(params_.package_conductance_w_per_um2_k,
-                                    std::numeric_limits<double>::min());
+  // h <= 0 (no heat removal) has no steady state; solve for the rise
+  // profile around a zero mean instead.
+  const double h
+      = std::max<double>(params_.package_conductance_w_per_um2_k, 0.0);
   const double dx = std::max<double>(grid_.bin_w_um, 1e-6);
   const double dy = std::max<double>(grid_.bin_h_um, 1e-6);
-  thermal_iters_
-      = sorSolve(rhs_, k / (dx * dx), k / (dy * dy), h, nullptr, work_);
+  double sum_q = 0.0;
+  for (size_t i = 0; i < n; i++) {
+    sum_q += rhs_[i];
+  }
+  const double mean_rise = h > 0 ? sum_q / (h * n) : 0.0;
+  thermal_iters_ = sorSolve(
+      rhs_, k / (dx * dx), k / (dy * dy), h, nullptr, &mean_rise, work_);
 
   for (size_t i = 0; i < n; i++) {
     temperature_[i] = params_.ambient_c + static_cast<float>(work_[i]);
@@ -260,8 +295,13 @@ void PhysicsFields::solveIrDrop()
                                         std::numeric_limits<double>::min());
   const double dx = std::max<double>(grid_.bin_w_um, 1e-6);
   const double dy = std::max<double>(grid_.bin_h_um, 1e-6);
-  ir_iters_ = sorSolve(
-      rhs_, sigma / (dx * dx), sigma / (dy * dy), 0.0, &is_pad_, work_);
+  ir_iters_ = sorSolve(rhs_,
+                       sigma / (dx * dx),
+                       sigma / (dy * dy),
+                       0.0,
+                       &is_pad_,
+                       nullptr,
+                       work_);
 
   for (size_t i = 0; i < n; i++) {
     ir_drop_[i] = std::max(0.0f, static_cast<float>(work_[i]));

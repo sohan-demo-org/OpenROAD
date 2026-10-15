@@ -160,6 +160,7 @@ class PhysicsFields
                double ky,
                double diag_extra,
                const std::vector<bool>* fixed,
+               const double* mean_target,
                std::vector<double>& u) const;
 
   PhysicsGrid grid_;
