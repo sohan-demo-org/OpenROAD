@@ -751,6 +751,11 @@ bool NesterovPlace::isDiverged(float& diverge_snapshot_WlCoefX,
       for (auto& nb : nbVec_) {
         nb->revertToSnapshot();
       }
+      // Physics gradients must not outlive the revert; also back off the
+      // physics force for the remaining passes (GPL-0205).
+      if (npVars_.physicsDrivenMode && phb_) {
+        phb_->notifyDivergence();
+      }
       num_region_diverged_ = 0;
     } else {
       divergeMsg_
@@ -1155,6 +1160,15 @@ void NesterovPlace::reportResults(int nesterov_iter,
     log_->metric("gpl__area__timing_delta__percent", td_diff);
   }
 
+  if (npVars_.physicsDrivenMode && phb_) {
+    log_->info(GPL,
+               204,
+               "Physics-driven passes: {}, inflated area: {:.2f}%",
+               phb_->getPassCount(),
+               phb_->getInflatedAreaPercent());
+    log_->metric("gpl__physics__passes", phb_->getPassCount());
+  }
+
   int64_t new_area = 0;
   for (auto& nb : nbVec_) {
     new_area += nb->getNesterovInstsArea();
@@ -1355,13 +1369,14 @@ int NesterovPlace::doNesterovPlace(int start_iter)
   // boxes. No-op on the CPU backend.
   nbc_->mirrorNetBoxesToHost();
 
+  // Final physics report on the finished placement (no actuators). Runs
+  // before reportResults so the restored GCell sizes are what gets reported.
+  runPhysicsDriven(nesterov_iter, /*final=*/true);
+
   reportResults(nesterov_iter, original_area, td_accumulated_delta_area);
 
   // In all case, including divergence, the db should be updated.
   updateDb();
-
-  // Final physics report on the finished placement (no actuators).
-  runPhysicsDriven(nesterov_iter, /*final=*/true);
 
   if (num_region_diverged_ > 0) {
     if (allow_divergence_recovery_) {
