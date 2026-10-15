@@ -118,6 +118,10 @@ class PhysicsFields
   std::pair<float, float> stressGradient(int x, int y) const;
 
   const PhysicsSummary& summary() const { return summary_; }
+  bool solved() const { return solved_; }
+  // Iterations the last thermal / IR solve ran (0 when skipped).
+  int thermalIterations() const { return thermal_iters_; }
+  int irDropIterations() const { return ir_iters_; }
 
   // Helpers exposed for tests.
   static float normalizedAt(const std::vector<float>& field, size_t idx);
@@ -136,6 +140,29 @@ class PhysicsFields
                                      int x,
                                      int y) const;
 
+  // Min/max of a field, cached after solve() so gradient queries are O(1).
+  struct FieldRange
+  {
+    float min = 0;
+    float max = 0;
+  };
+  static FieldRange rangeOf(const std::vector<float>& field);
+  void cacheRanges();
+  std::pair<float, float> gradientOf(const std::vector<float>& field,
+                                     const FieldRange& range,
+                                     int x,
+                                     int y) const;
+  std::pair<int, int> binOf(size_t idx) const;
+  void buildPadBins();
+  // Red-black SOR on the 5-point stencil; see physicsField.cpp.
+  int sorSolve(const std::vector<double>& rhs,
+               double kx,
+               double ky,
+               double diag_extra,
+               const std::vector<bool>* fixed,
+               const double* mean_target,
+               std::vector<double>& u) const;
+
   PhysicsGrid grid_;
   PhysicsModelParams params_;
 
@@ -148,6 +175,15 @@ class PhysicsFields
   std::vector<float> stress_;
   PhysicsSummary summary_;
   bool solved_ = false;
+  bool user_pads_ = false;
+  int thermal_iters_ = 0;
+  int ir_iters_ = 0;
+  FieldRange temperature_range_;
+  FieldRange ir_drop_range_;
+  FieldRange stress_range_;
+  // Double-precision work buffers reused across solves.
+  std::vector<double> rhs_;
+  std::vector<double> work_;
 };
 
 }  // namespace gpl
