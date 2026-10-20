@@ -4,11 +4,12 @@
 sta::define_cmd_args "run_worker" {
     [-host host]
     [-port port]
+    [-shared_volume vol]
     [-i]
 }
 proc run_worker { args } {
   sta::parse_key_args "run_worker" args \
-    keys {-host -port -threads} \
+    keys {-host -port -threads -shared_volume} \
     flags {-i}
   sta::check_argc_eq0 "run_worker" $args
   if { [info exists keys(-host)] } {
@@ -21,8 +22,13 @@ proc run_worker { args } {
   } else {
     utl::error DST 3 "-port is required in run_worker cmd."
   }
+  if { [info exists keys(-shared_volume)] } {
+    set shared_volume $keys(-shared_volume)
+  } else {
+    set shared_volume ""
+  }
   set interactive [info exists flags(-i)]
-  dst::run_worker_cmd $host $port $interactive
+  dst::run_worker_cmd $host $port $shared_volume $interactive
 }
 
 sta::define_cmd_args "run_load_balancer" {

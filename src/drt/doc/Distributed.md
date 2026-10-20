@@ -114,6 +114,26 @@ In the first step, we created a cluster on Google cloud. In this step we connect
     kubectl apply -f k8s-drt.yaml
     ```
 
+### Authenticating the cluster
+
+Every message exchanged between the leader, the load balancer and the workers
+is authenticated with an HMAC-SHA256 tag computed from a shared secret.
+Messages without a valid tag are dropped before they are decoded. The secret
+is read from the `OPENROAD_DST_AUTH_KEY` environment variable (or from the file
+named by `OPENROAD_DST_AUTH_KEY_FILE`), must be at least 16 characters long,
+and must be identical on the leader, the load balancer and every worker.
+Workers and load balancers refuse to listen on a non-loopback address unless a
+key is configured. The example configuration file reads the key from a
+Kubernetes secret named `dst-auth`:
+
+    kubectl create secret generic dst-auth --from-literal=key="$(openssl rand -hex 32)"
+
+Export the same value as `OPENROAD_DST_AUTH_KEY` before starting the leader.
+
+Workers should be started with `run_worker -shared_volume <dir>`; every file
+path in a job they receive must then resolve (after resolving `..` and
+symlinks) to a location inside `<dir>`, otherwise the job is rejected.
+
 ### Communicating with the cluster
 
 For the leader to communicate with the cluster, we need to supply:

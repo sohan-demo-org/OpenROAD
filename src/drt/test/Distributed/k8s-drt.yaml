@@ -40,7 +40,7 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             - source env.sh;
-              printf 'set_thread_count %s\nrun_worker -host %s -port 1111\n' "$MY_POD_CPU" "$MY_POD_IP" > /home/worker.tcl ;
+              printf 'set_thread_count %s\nrun_worker -host %s -port 1111 -shared_volume ${SHARED_FOLDER_PATH}\n' "$MY_POD_CPU" "$MY_POD_IP" > /home/worker.tcl ;
               openroad /home/worker.tcl ;
           ports:
           - containerPort: 1111
@@ -54,6 +54,11 @@ spec:
                 fieldPath: status.podIP
           - name: MY_POD_CPU
             value: "20"
+          - name: OPENROAD_DST_AUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: dst-auth
+                key: key
           resources:
             requests:
               cpu: 20
@@ -96,6 +101,11 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          - name: OPENROAD_DST_AUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: dst-auth
+                key: key
           resources:
             requests:
               cpu: 31

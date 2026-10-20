@@ -140,6 +140,7 @@ class TritonRoute : public PinAccessService
   void setDistributed(bool on = true);
   void setWorkerIpPort(const char* ip, unsigned short port);
   void setSharedVolume(const std::string& vol);
+  const std::string& getSharedVolume() const { return shared_volume_; }
   void setCloudSize(unsigned int cloud_sz) { cloud_sz_ = cloud_sz; }
   unsigned int getCloudSize() const { return cloud_sz_; }
   void setDebugPaEdge(bool on = true);

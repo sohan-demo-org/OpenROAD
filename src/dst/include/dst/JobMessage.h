@@ -90,9 +90,12 @@ class JobMessage
     kRead,
     kWrite
   };
+  // When auth_key is non-empty, written messages are prefixed with an
+  // HMAC-SHA256 tag and read messages are rejected unless the tag verifies.
   static bool serializeMsg(SerializeType type,
                            JobMessage& msg,
-                           std::string& str);
+                           std::string& str,
+                           const std::string& auth_key);
   friend class dst::Distributed;
   friend class dst::WorkerConnection;
   friend class dst::BalancerConnection;

@@ -9,7 +9,8 @@ project(dst
   LANGUAGES CXX
 )
 
-find_package(Boost CONFIG REQUIRED COMPONENTS serialization thread)
+# Boost.Hash2 (HMAC-SHA256 message authentication) first shipped in 1.88.
+find_package(Boost 1.88 CONFIG REQUIRED COMPONENTS serialization thread)
 swig_lib(NAME      dst
          NAMESPACE dst
          I_FILE    src/Distributed.i
