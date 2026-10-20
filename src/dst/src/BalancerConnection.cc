@@ -34,7 +34,10 @@ namespace dst {
 BalancerConnection::BalancerConnection(asio::io_context& service,
                                        LoadBalancer* owner,
                                        utl::Logger* logger)
-    : sock_(service), logger_(logger), owner_(owner)
+    : sock_(service),
+      in_packet_(Distributed::kMaxMessageSize),
+      logger_(logger),
+      owner_(owner)
 {
 }
 // socket creation
@@ -64,11 +67,13 @@ void BalancerConnection::handle_read(boost::system::error_code const& err,
     std::string data{buffers_begin(in_packet_.data()),
                      buffers_begin(in_packet_.data()) + bytes_transferred};
     JobMessage msg(JobMessage::kNone);
-    if (!JobMessage::serializeMsg(JobMessage::kRead, msg, data)) {
+    if (!JobMessage::serializeMsg(
+            JobMessage::kRead, msg, data, owner_->dist_->getAuthKey())) {
       logger_->warn(utl::DST,
                     42,
-                    "Received malformed msg {} from port {}",
-                    data,
+                    "Rejected unauthenticated or malformed msg ({} bytes) from "
+                    "port {}",
+                    data.size(),
                     sock_.remote_endpoint().port());
       asio::write(sock_, asio::buffer("0"), error);
       sock_.close();
@@ -138,7 +143,10 @@ void BalancerConnection::handle_read(boost::system::error_code const& err,
             if (failure) {
               JobMessage result(JobMessage::kError);
               std::string msg_str;
-              JobMessage::serializeMsg(JobMessage::kWrite, result, msg_str);
+              JobMessage::serializeMsg(JobMessage::kWrite,
+                                       result,
+                                       msg_str,
+                                       owner_->dist_->getAuthKey());
               asio::write(sock_, asio::buffer(msg_str), error);
             } else {
               asio::write(sock_, receive_buffer, error);
@@ -202,7 +210,8 @@ void BalancerConnection::handle_read(boost::system::error_code const& err,
         auto desc = u_desc.get();
         desc->setWorkersCount(success_broadcast);
         result.setJobDescription(std::move(u_desc));
-        JobMessage::serializeMsg(JobMessage::kWrite, result, msg_str);
+        JobMessage::serializeMsg(
+            JobMessage::kWrite, result, msg_str, owner_->dist_->getAuthKey());
         asio::write(sock_, asio::buffer(msg_str), error);
         sock_.close();
         break;

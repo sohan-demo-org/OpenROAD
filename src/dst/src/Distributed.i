@@ -10,10 +10,13 @@
 
 %inline %{
 
-void run_worker_cmd(
-    const char* host, unsigned short port, bool interactive)
+void run_worker_cmd(const char* host,
+                    unsigned short port,
+                    const char* shared_volume,
+                    bool interactive)
 {
   auto* distributed = ord::OpenRoad::openRoad()->getDistributed();
+  distributed->setSharedVolume(shared_volume);
   distributed->runWorker(host, port, interactive);
 }
 

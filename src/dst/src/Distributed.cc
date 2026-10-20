@@ -5,9 +5,13 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <utility>
@@ -40,10 +44,75 @@ Distributed::~Distributed()
   callbacks_.clear();
 }
 
+void Distributed::setAuthKey(const std::string& key)
+{
+  std::call_once(auth_key_loaded_, [] {});
+  auth_key_ = key;
+}
+
+const std::string& Distributed::getAuthKey()
+{
+  std::call_once(auth_key_loaded_, [this] { loadAuthKeyFromEnv(); });
+  return auth_key_;
+}
+
+void Distributed::loadAuthKeyFromEnv()
+{
+  std::string key;
+  if (const char* env_key = std::getenv(kAuthKeyEnvVar);
+      env_key != nullptr && *env_key != '\0') {
+    key = env_key;
+  } else if (const char* key_file = std::getenv(kAuthKeyFileEnvVar);
+             key_file != nullptr && *key_file != '\0') {
+    std::ifstream stream(key_file, std::ios::binary);
+    if (!stream.good()) {
+      logger_->error(utl::DST,
+                     18,
+                     "Unable to read the DST authentication key file {}.",
+                     key_file);
+    }
+    key.assign(std::istreambuf_iterator<char>(stream),
+               std::istreambuf_iterator<char>());
+    while (!key.empty()
+           && (key.back() == '\n' || key.back() == '\r' || key.back() == ' '
+               || key.back() == '\t')) {
+      key.pop_back();
+    }
+  }
+  if (!key.empty() && key.size() < kMinAuthKeyLength) {
+    logger_->error(utl::DST,
+                   19,
+                   "The DST authentication key must be at least {} characters.",
+                   kMinAuthKeyLength);
+  }
+  auth_key_ = std::move(key);
+}
+
+void Distributed::checkBindAddress(const char* ip, const char* role)
+{
+  boost::system::error_code ec;
+  const auto address = ip::make_address(ip, ec);
+  if (ec) {
+    logger_->error(utl::DST, 23, "Invalid {} address {}.", role, ip);
+  }
+  if (!address.is_loopback() && !hasAuthKey()) {
+    logger_->error(utl::DST,
+                   24,
+                   "Refusing to run the {} on non-loopback address {} without "
+                   "authentication. Set {} (or {}) to the same secret on the "
+                   "leader, the load balancer and every worker.",
+                   role,
+                   ip,
+                   kAuthKeyEnvVar,
+                   kAuthKeyFileEnvVar);
+  }
+}
+
 void Distributed::runWorker(const char* ip,
                             unsigned short port,
                             bool interactive)
 {
+  checkBindAddress(ip, "worker");
   try {
     auto u_worker = std::make_unique<Worker>(this, logger_, ip, port);
     auto worker = u_worker.get();
@@ -63,6 +132,7 @@ void Distributed::runLoadBalancer(const char* ip,
                                   unsigned short port,
                                   const char* workers_domain)
 {
+  checkBindAddress(ip, "load balancer");
   try {
     asio::io_context service;
     LoadBalancer balancer(this, service, logger_, ip, workers_domain, port);
@@ -130,7 +200,8 @@ bool Distributed::sendJob(JobMessage& msg,
 {
   int tries = 0;
   std::string msg_str;
-  if (!JobMessage::serializeMsg(JobMessage::kWrite, msg, msg_str)) {
+  if (!JobMessage::serializeMsg(
+          JobMessage::kWrite, msg, msg_str, getAuthKey())) {
     logger_->warn(utl::DST, 112, "Serializing JobMessage failed");
     return false;
   }
@@ -165,7 +236,8 @@ bool Distributed::sendJob(JobMessage& msg,
       }
       continue;
     }
-    if (!JobMessage::serializeMsg(JobMessage::kRead, result, result_str)) {
+    if (!JobMessage::serializeMsg(
+            JobMessage::kRead, result, result_str, getAuthKey())) {
       continue;
     }
     if (sock.is_open()) {
@@ -200,7 +272,8 @@ bool Distributed::sendJobMultiResult(JobMessage& msg,
 {
   int tries = 0;
   std::string msg_str;
-  if (!JobMessage::serializeMsg(JobMessage::kWrite, msg, msg_str)) {
+  if (!JobMessage::serializeMsg(
+          JobMessage::kWrite, msg, msg_str, getAuthKey())) {
     logger_->warn(utl::DST, 12, "Serializing JobMessage failed");
     return false;
   }
@@ -240,7 +313,8 @@ bool Distributed::sendJobMultiResult(JobMessage& msg,
     std::string split;
     while (getNextMsg(result_str, JobMessage::kEop, split)) {
       JobMessage tmp;
-      if (!JobMessage::serializeMsg(JobMessage::kRead, tmp, split)) {
+      if (!JobMessage::serializeMsg(
+              JobMessage::kRead, tmp, split, getAuthKey())) {
         logger_->error(utl::DST, 9999, "Problem in deserialize {}", split);
       } else {
         result.addJobDescription(std::move(tmp.getJobDescriptionRef()));
@@ -263,7 +337,8 @@ bool Distributed::sendJobMultiResult(JobMessage& msg,
 bool Distributed::sendResult(JobMessage& msg, dst::Socket& sock)
 {
   std::string msg_str;
-  if (!JobMessage::serializeMsg(JobMessage::kWrite, msg, msg_str)) {
+  if (!JobMessage::serializeMsg(
+          JobMessage::kWrite, msg, msg_str, getAuthKey())) {
     logger_->warn(utl::DST, 20, "Serializing result JobMessage failed");
     return false;
   }

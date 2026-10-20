@@ -22,6 +22,7 @@ WorkerConnection::WorkerConnection(asio::io_context& service,
                                    Worker* worker)
     : sock_(service),
       dist_(dist),
+      in_packet_(Distributed::kMaxMessageSize),
       logger_(logger),
       msg_(JobMessage::kNone),
       worker_(worker)
@@ -52,11 +53,13 @@ void WorkerConnection::handle_read(boost::system::error_code const& err,
     std::string data{buffers_begin(in_packet_.data()),
                      buffers_begin(in_packet_.data()) + bytes_transferred};
     boost::system::error_code error;
-    if (!JobMessage::serializeMsg(JobMessage::kRead, msg_, data)) {
+    if (!JobMessage::serializeMsg(
+            JobMessage::kRead, msg_, data, dist_->getAuthKey())) {
       logger_->warn(utl::DST,
                     41,
-                    "Received malformed msg {} from port {}",
-                    data,
+                    "Rejected unauthenticated or malformed msg ({} bytes) from "
+                    "port {}",
+                    data.size(),
                     sock_.remote_endpoint().port());
       asio::write(sock_, asio::buffer("0"), error);
       sock_.close();

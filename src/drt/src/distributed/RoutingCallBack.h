@@ -2,12 +2,16 @@
 // Copyright (c) 2021-2025, The OpenROAD Authors
 
 #pragma once
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -56,8 +60,11 @@ class RoutingCallBack : public dst::JobCallBack
     if (msg.getJobType() != dst::JobMessage::kRouting) {
       return;
     }
-    RoutingJobDescription* desc
-        = static_cast<RoutingJobDescription*>(msg.getJobDescription());
+    auto* desc = dynamic_cast<RoutingJobDescription*>(msg.getJobDescription());
+    if (desc == nullptr) {
+      rejectJob(sock, "routing job without a routing job description");
+      return;
+    }
     if (init_) {
       init_ = false;
       omp_set_num_threads(router_->getRouterConfiguration()->MAX_THREADS);
@@ -102,8 +109,26 @@ class RoutingCallBack : public dst::JobCallBack
       return;
     }
     dst::JobMessage result(dst::JobMessage::kUpdateDesign);
-    RoutingJobDescription* desc
-        = static_cast<RoutingJobDescription*>(msg.getJobDescription());
+    auto* desc = dynamic_cast<RoutingJobDescription*>(msg.getJobDescription());
+    if (desc == nullptr) {
+      rejectJob(sock, "design update without a routing job description");
+      return;
+    }
+    const std::string root = allowedRoot(desc->getSharedDir());
+    if (!desc->getSharedDir().empty()
+        && !isPathInside(desc->getSharedDir(), root, /* allow_equal */ true)) {
+      rejectJob(sock, "shared directory outside of the shared volume");
+      return;
+    }
+    std::vector<std::string> paths = desc->getUpdates();
+    paths.push_back(desc->getGlobalsPath());
+    paths.push_back(desc->getDesignPath());
+    for (const std::string& path : paths) {
+      if (!path.empty() && !isPathInside(path, root)) {
+        rejectJob(sock, "file path outside of the shared volume");
+        return;
+      }
+    }
     if (!desc->getGlobalsPath().empty()) {
       if (router_cfg_path_ != desc->getGlobalsPath()) {
         router_cfg_path_ = desc->getGlobalsPath();
@@ -139,8 +164,17 @@ class RoutingCallBack : public dst::JobCallBack
     if (msg.getJobType() != dst::JobMessage::kPinAccess) {
       return;
     }
-    PinAccessJobDescription* desc
-        = static_cast<PinAccessJobDescription*>(msg.getJobDescription());
+    auto* desc
+        = dynamic_cast<PinAccessJobDescription*>(msg.getJobDescription());
+    if (desc == nullptr) {
+      rejectJob(sock, "pin access job without a pin access job description");
+      return;
+    }
+    if (desc->getType() != PinAccessJobDescription::INIT_PA
+        && !isPathInside(desc->getPath(), allowedRoot(""))) {
+      rejectJob(sock, "file path outside of the shared volume");
+      return;
+    }
     logger_->report("Received PA Job");
     dst::JobMessage result(dst::JobMessage::kSuccess);
     switch (desc->getType()) {
@@ -211,6 +245,69 @@ class RoutingCallBack : public dst::JobCallBack
   }
 
  private:
+  // Directory every file path of a job must be inside: the worker's
+  // configured shared volume (run_worker -shared_volume) if any, otherwise the
+  // shared volume previously announced by the leader, otherwise the one
+  // announced by the current job.
+  std::string allowedRoot(const std::string& announced_dir) const
+  {
+    if (!dist_->getSharedVolume().empty()) {
+      return dist_->getSharedVolume();
+    }
+    if (!router_->getSharedVolume().empty()) {
+      return router_->getSharedVolume();
+    }
+    return announced_dir;
+  }
+
+  static std::filesystem::path normalizePath(const std::string& path)
+  {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path result = fs::absolute(path, ec);
+    if (ec) {
+      return {};
+    }
+    // Resolves symlinks of the existing prefix and removes "." / "..".
+    result = fs::weakly_canonical(result, ec);
+    if (ec) {
+      return {};
+    }
+    if (!result.has_filename() && result.has_parent_path()
+        && result != result.root_path()) {
+      result = result.parent_path();
+    }
+    return result;
+  }
+
+  static bool isPathInside(const std::string& path,
+                           const std::string& root,
+                           bool allow_equal = false)
+  {
+    if (path.empty() || root.empty()) {
+      return false;
+    }
+    const std::filesystem::path norm_root = normalizePath(root);
+    const std::filesystem::path norm_path = normalizePath(path);
+    if (norm_root.empty() || norm_path.empty()) {
+      return false;
+    }
+    auto [root_it, path_it] = std::mismatch(
+        norm_root.begin(), norm_root.end(), norm_path.begin(), norm_path.end());
+    if (root_it != norm_root.end()) {
+      return false;
+    }
+    return allow_equal || path_it != norm_path.end();
+  }
+
+  void rejectJob(dst::Socket& sock, const char* reason)
+  {
+    logger_->warn(utl::DRT, 9960, "Rejected distributed job: {}.", reason);
+    dst::JobMessage result(dst::JobMessage::kError);
+    dist_->sendResult(result, sock);
+    sock.close();
+  }
+
   void sendResult(const std::vector<std::pair<int, std::string>>& results,
                   dst::Socket& sock,
                   bool finish,

@@ -45,6 +45,7 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@boost.asio",
         "@boost.bind",
+        "@boost.hash2",
         "@boost.serialization",
         "@boost.smart_ptr",
         "@boost.system",
