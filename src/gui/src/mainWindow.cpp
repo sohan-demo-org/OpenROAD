@@ -1880,7 +1880,9 @@ void MainWindow::registerHeatMap(web::HeatMapDataSource* heatmap)
 void MainWindow::unregisterHeatMap(web::HeatMapDataSource* heatmap)
 {
   auto* heat_maps = menuBar()->findChild<QMenu*>("HeatMaps");
-  heat_maps->removeAction(heatmap_actions_[heatmap]);
+  auto* action = heatmap_actions_[heatmap];
+  heat_maps->removeAction(action);
+  delete action;
   heatmap_actions_.erase(heatmap);
 }
 
