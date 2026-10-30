@@ -371,6 +371,78 @@ bool webSocketOriginAllowed(const std::string_view origin,
                     });
 }
 
+bool webRequestHostAllowed(const std::string_view host)
+{
+  // Blocks DNS rebinding: a page served from attacker.example whose name later
+  // resolves to 127.0.0.1 reaches this server same-origin to itself, so the
+  // Origin check passes and only Host betrays it.  Rebinding needs a DNS name
+  // the attacker controls, so accept just the names that cannot be rebound:
+  // "localhost" (browsers pin it to loopback) and IP literals.  Any other name
+  // is refused, the exposed-bind case included — browse those by IP address.
+  // The port is not compared: a published container port may differ from the
+  // one listened on, and the port is not what rebinding subverts.
+  //
+  // Absent Host: browsers always send it, so its absence is a non-browser
+  // client, which this check cannot gate anyway (see webSocketOriginAllowed).
+  if (host.empty()) {
+    return true;
+  }
+  std::string_view name;
+  std::string_view port;
+  if (host.front() == '[') {
+    const size_t close = host.find(']');
+    if (close == std::string_view::npos) {
+      return false;
+    }
+    name = host.substr(1, close - 1);
+    const std::string_view rest = host.substr(close + 1);
+    if (!rest.empty()) {
+      if (rest.front() != ':') {
+        return false;
+      }
+      port = rest.substr(1);
+      if (port.empty()) {
+        return false;
+      }
+    }
+  } else {
+    const size_t colon = host.find(':');
+    name = host.substr(0, colon);
+    if (colon != std::string_view::npos) {
+      port = host.substr(colon + 1);
+      if (port.empty()) {
+        return false;
+      }
+    }
+  }
+  if (!std::all_of(port.begin(), port.end(), [](const char c) {
+        return c >= '0' && c <= '9';
+      })) {
+    return false;
+  }
+  const auto ascii_lower = [](const char c) {
+    return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+  };
+  constexpr std::string_view kLocalhost = "localhost";
+  if (std::equal(name.begin(),
+                 name.end(),
+                 kLocalhost.begin(),
+                 kLocalhost.end(),
+                 [&ascii_lower](const char a, const char b) {
+                   return ascii_lower(a) == ascii_lower(b);
+                 })) {
+    return true;
+  }
+  // An IPv6 literal must be bracketed and an IPv4 one must not (RFC 3986
+  // 3.2.2); a bare name with a colon in it never gets this far.
+  boost::system::error_code ec;
+  const auto address = boost::asio::ip::make_address(name, ec);
+  if (ec) {
+    return false;
+  }
+  return address.is_v6() == (host.front() == '[');
+}
+
 BindAddressKind classifyBindAddress(const std::string_view address)
 {
   // make_address parses IP literals only — it never resolves a name, so

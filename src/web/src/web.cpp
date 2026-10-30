@@ -307,6 +307,48 @@ class ScriptGateScope
   const bool entered_;
 };
 
+// Header values are attacker-controlled; strip control characters and cap the
+// length so one cannot inject newlines/escape sequences into the log.
+static std::string printableForLog(const std::string_view value)
+{
+  const std::string_view clipped = value.substr(0, 128);
+  std::string safe;
+  safe.reserve(clipped.size());
+  for (const char c : clipped) {
+    safe.push_back(std::isprint(static_cast<unsigned char>(c)) != 0 ? c : '?');
+  }
+  return safe;
+}
+
+static std::shared_ptr<http::response<http::string_body>> forbiddenResponse(
+    const unsigned version,
+    const std::string_view body)
+{
+  auto res = std::make_shared<http::response<http::string_body>>(
+      http::status::forbidden, version);
+  res->set(http::field::server, "OpenROAD WebSocket Server");
+  res->set(http::field::content_type, "text/plain");
+  res->keep_alive(false);
+  res->body() = std::string(body);
+  res->prepare_payload();
+  return res;
+}
+
+// See webRequestHostAllowed: refuses a DNS-rebound Host on every request.
+static bool requestHostAllowed(const http::request<http::string_body>& req,
+                               utl::Logger* logger)
+{
+  const std::string_view host = req[http::field::host];
+  if (webRequestHostAllowed(host)) {
+    return true;
+  }
+  logger->warn(utl::WEB,
+               116,
+               "Rejected request with disallowed Host \"{}\".",
+               printableForLog(host));
+  return false;
+}
+
 static http::response<http::string_body> handle_request(
     http::request<http::string_body>&& req,
     const std::shared_ptr<TileGenerator>& generator,
@@ -1373,6 +1415,11 @@ void HttpSession::on_read(beast::error_code ec)
     return;
   }
 
+  if (!requestHostAllowed(req_, logger_)) {
+    res_ = forbiddenResponse(req_.version(), "Forbidden: disallowed Host.");
+    do_write();
+    return;
+  }
   res_ = std::make_shared<http::response<http::string_body>>(
       handle_request(std::move(req_), generator_, tcl_eval_->script_gate));
   do_write();
@@ -1491,29 +1538,23 @@ void DetectSession::on_read(beast::error_code ec)
     // the browser cross-site vector.  It does NOT authenticate a non-browser
     // network client, which controls every header; that is the job of binding
     // to loopback (issue #11167, F-02), on which this guard depends.
+    //
+    // The Origin check alone is defeated by DNS rebinding, where the page and
+    // the socket share the attacker's name; the Host check refuses that name.
     const std::string_view origin = req_[http::field::origin];
     const std::string_view host = req_[http::field::host];
-    if (!webSocketOriginAllowed(origin, host)) {
-      // The Origin is attacker-controlled; strip control characters and cap
-      // the length so it cannot inject newlines/escape sequences into the log.
-      const std::string_view clipped = origin.substr(0, 128);
-      std::string safe_origin;
-      safe_origin.reserve(clipped.size());
-      for (const char c : clipped) {
-        safe_origin.push_back(
-            std::isprint(static_cast<unsigned char>(c)) != 0 ? c : '?');
-      }
+    std::string_view body;
+    if (!requestHostAllowed(req_, logger_)) {
+      body = "Forbidden: disallowed Host.";
+    } else if (!webSocketOriginAllowed(origin, host)) {
       logger_->warn(utl::WEB,
                     78,
                     "Rejected WebSocket upgrade from disallowed Origin \"{}\".",
-                    safe_origin);
-      auto res = std::make_shared<http::response<http::string_body>>(
-          http::status::forbidden, req_.version());
-      res->set(http::field::server, "OpenROAD WebSocket Server");
-      res->set(http::field::content_type, "text/plain");
-      res->keep_alive(false);
-      res->body() = "Forbidden: cross-origin WebSocket rejected.";
-      res->prepare_payload();
+                    printableForLog(origin));
+      body = "Forbidden: cross-origin WebSocket rejected.";
+    }
+    if (!body.empty()) {
+      auto res = forbiddenResponse(req_.version(), body);
       // Keep `res` alive until the write completes, then shut the socket down
       // for a graceful FIN — same teardown as HttpSession::do_close.
       http::async_write(

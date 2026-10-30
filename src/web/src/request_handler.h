@@ -527,6 +527,14 @@ std::string assetPathFromTarget(std::string_view target);
 // when its authority equals the Host header (strict same-origin).
 bool webSocketOriginAllowed(std::string_view origin, std::string_view host);
 
+// True if an HTTP or WebSocket request carrying this Host header may be
+// served.  Blocks DNS rebinding: once an attacker's name resolves to the
+// loopback address, its page is same-origin with itself, so the Origin check
+// alone passes; the Host header still names the attacker's domain.  Only
+// "localhost" and IP literals (which cannot be rebound) are accepted, with any
+// port; an absent Host (non-browser client) is allowed.
+bool webRequestHostAllowed(std::string_view host);
+
 // Optional-field accessor: returns the JSON value at `key` converted to T,
 // or `default_val` when the key is missing.  Throws
 // (boost::system::system_error) when the key is present but the JSON type
