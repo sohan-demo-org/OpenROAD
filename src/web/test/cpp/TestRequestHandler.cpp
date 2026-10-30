@@ -690,6 +690,58 @@ TEST(WebSocketOriginAllowed, OpaqueOriginIsRejected)
   EXPECT_FALSE(webSocketOriginAllowed("null", "localhost:8080"));
 }
 
+// Host validation against DNS rebinding: once evil.example resolves to
+// 127.0.0.1, its page and socket are same-origin, so only Host betrays it.
+TEST(WebRequestHostAllowed, AbsentHostIsAllowed)
+{
+  EXPECT_TRUE(webRequestHostAllowed(""));
+}
+
+TEST(WebRequestHostAllowed, LocalhostIsAllowed)
+{
+  EXPECT_TRUE(webRequestHostAllowed("localhost:8080"));
+  EXPECT_TRUE(webRequestHostAllowed("LocalHost:8080"));
+  EXPECT_TRUE(webRequestHostAllowed("localhost"));
+}
+
+TEST(WebRequestHostAllowed, IpLiteralsAreAllowed)
+{
+  EXPECT_TRUE(webRequestHostAllowed("127.0.0.1:8080"));
+  EXPECT_TRUE(webRequestHostAllowed("[::1]:8080"));
+  EXPECT_TRUE(webRequestHostAllowed("[::1]"));
+  // An exposed bind (-bind 0.0.0.0) is browsed by the machine's address.
+  EXPECT_TRUE(webRequestHostAllowed("192.168.1.5:8080"));
+}
+
+TEST(WebRequestHostAllowed, RebindableNameIsRejected)
+{
+  // The rebinding vector: Origin and Host both name the attacker's domain.
+  EXPECT_FALSE(webRequestHostAllowed("evil.example:8080"));
+  EXPECT_FALSE(webRequestHostAllowed("evil.example"));
+  EXPECT_TRUE(
+      webSocketOriginAllowed("http://evil.example:8080", "evil.example:8080"));
+}
+
+TEST(WebRequestHostAllowed, LocalhostLookalikesAreRejected)
+{
+  EXPECT_FALSE(webRequestHostAllowed("localhost.evil.example:8080"));
+  EXPECT_FALSE(webRequestHostAllowed("evil.localhost.example"));
+  EXPECT_FALSE(webRequestHostAllowed("127.0.0.1.evil.example:8080"));
+  EXPECT_FALSE(webRequestHostAllowed("localhost.:8080"));
+}
+
+TEST(WebRequestHostAllowed, MalformedHostsAreRejected)
+{
+  EXPECT_FALSE(webRequestHostAllowed("localhost:"));
+  EXPECT_FALSE(webRequestHostAllowed("localhost:80x"));
+  EXPECT_FALSE(webRequestHostAllowed("localhost:80:80"));
+  EXPECT_FALSE(webRequestHostAllowed("::1"));
+  EXPECT_FALSE(webRequestHostAllowed("[::1"));
+  EXPECT_FALSE(webRequestHostAllowed("[::1]x"));
+  EXPECT_FALSE(webRequestHostAllowed("[127.0.0.1]:8080"));
+  EXPECT_FALSE(webRequestHostAllowed("[evil.example]:8080"));
+}
+
 // Bind-address classification for web_server -bind (issue #11167).
 TEST(ClassifyBindAddress, LoopbackIsRecognised)
 {

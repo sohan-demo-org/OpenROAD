@@ -42,6 +42,10 @@ bind keeps that local. Only pass `-bind` (for example `-bind 0.0.0.0`) on a
 network you trust; the server has no authentication.
 ```
 
+To stop DNS rebinding, every request must name the server by `localhost` or by
+an IP address in its `Host` header; any other hostname gets `403 Forbidden`.
+Browse an exposed viewer at `http://<ip-address>:<port>`, not by machine name.
+
 Because the default is loopback, a viewer started inside a container or on a
 remote host is not reachable from outside it — the connection is refused with no
 message from the server. Bind explicitly in that case, and publish the port:
